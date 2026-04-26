@@ -54,6 +54,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 interface SortableFacilityProps {
+  key?: React.Key;
   f: Facility;
   isAdmin: boolean;
   setPendingDeleteFacility: (data: {id: string, name: string} | null) => void;
@@ -788,7 +789,7 @@ export default function App() {
                       setIsReservationModalOpen(true);
                     }}
                   >
-                    <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-100 text-slate-200"><Plus size={16} /></div>
+                    <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-100 text-slate-500 transition-all duration-200"><Plus size={18} /></div>
                   </div>
                 );
               });
