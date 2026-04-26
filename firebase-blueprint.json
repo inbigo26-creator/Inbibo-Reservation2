@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "Facility": {
+      "title": "Facility",
+      "description": "A school facility that can be reserved.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the facility (e.g., Gym, Lab)."
+        },
+        "order": {
+          "type": "integer",
+          "description": "The display order of the facility."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the facility was registered."
+        }
+      },
+      "required": ["name", "order", "createdAt"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "A reservation for a facility at a specific time.",
+      "type": "object",
+      "properties": {
+        "facilityId": {
+          "type": "string",
+          "description": "ID of the facility being reserved."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of reservation in YYYY-MM-DD format."
+        },
+        "timeSlot": {
+          "type": "integer",
+          "description": "The starting period index (0 to 9)."
+        },
+        "duration": {
+          "type": "integer",
+          "description": "Number of consecutive periods."
+        },
+        "teacherName": {
+          "type": "string",
+          "description": "The name of the teacher who reserved it."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The purpose of the reservation."
+        },
+        "repeat": {
+          "type": "string",
+          "enum": ["none", "weekly"],
+          "description": "Repetition rule."
+        },
+        "repeatUntil": {
+          "type": "string",
+          "description": "Optional end date for repetition in YYYY-MM-DD format."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the reservation was made."
+        }
+      },
+      "required": ["facilityId", "date", "timeSlot", "duration", "teacherName", "reason", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/facilities": {
+      "schema": "Facility",
+      "description": "Collection of school facilities."
+    },
+    "/reservations": {
+      "schema": "Reservation",
+      "description": "Collection of all facility reservations."
+    }
+  }
+}

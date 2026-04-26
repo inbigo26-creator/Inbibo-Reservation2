@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidFacility(data) {
+      return data.keys().hasAll(['name', 'order', 'createdAt']) 
+        && data.keys().size() == 3
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.order is int
+        && data.createdAt is timestamp;
+    }
+
+    function isValidReservation(data) {
+      return data.keys().hasAll(['facilityId', 'date', 'timeSlot', 'duration', 'teacherName', 'reason', 'createdAt'])
+        && data.facilityId is string && data.facilityId.size() > 0
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.timeSlot is int
+        && data.duration is int
+        && data.teacherName is string && data.teacherName.size() > 0 && data.teacherName.size() <= 100
+        && data.reason is string && data.reason.size() <= 500
+        && (data.keys().size() == 7 || (data.keys().size() >= 8 && data.repeat in ['none', 'weekly']))
+        && (!data.keys().hasAny(['repeatUntil']) || data.repeatUntil is string)
+        && data.createdAt is timestamp;
+    }
+
+    match /facilities/{facilityId} {
+      allow read: if true;
+      allow create: if isValidId(facilityId) && isValidFacility(incoming());
+      allow update: if true; // Allow reordering
+      allow delete: if true; 
+    }
+
+    match /reservations/{reservationId} {
+      allow read: if true;
+      allow create: if isValidId(reservationId) && isValidReservation(incoming());
+      allow update: if true; // Allow editing
+      allow delete: if true; 
+    }
+  }
+}
