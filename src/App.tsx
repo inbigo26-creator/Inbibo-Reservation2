@@ -510,7 +510,11 @@ export default function App() {
                   <SortableFacility 
                     key={f.id} f={f} isAdmin={isAdmin} 
                     setPendingDeleteFacility={setPendingDeleteFacility}
-                    onSelect={(f, mode) => { setSelectedFacility(f); setCurrentView(mode); }}
+                    onSelect={(f, mode) => { 
+                      setSelectedFacility(f); 
+                      setCurrentView(mode); 
+                      setCurrentDate(new Date());
+                    }}
                     onEdit={(f) => {
                       setEditingFacilityId(f.id);
                       setIsEditingFacility(true);
@@ -683,9 +687,9 @@ export default function App() {
                         setIsReservationModalOpen(true);
                       }}
                     >
-                      <div className={`h-full border ${color?.border} ${color?.bg} rounded-lg md:rounded-xl p-1 md:p-2 shadow-sm flex flex-col transition-transform hover:scale-[1.01] active:scale-100 cursor-pointer overflow-hidden`}>
-                        <div className={`text-[10px] md:text-[12px] font-black ${color?.text} leading-tight mb-auto break-all line-clamp-3 md:line-clamp-4 uppercase tracking-tighter`}>{res.reason || "예약 사유 없음"}</div>
-                        <div className={`text-[8px] md:text-[10px] ${color?.text} font-bold opacity-70 flex items-center gap-1 mt-0.5 md:mt-1 truncate`}><User size={8} strokeWidth={3} className="md:w-2.5 md:h-2.5" />{res.teacherName}</div>
+                      <div className={`h-full border ${color?.border} ${color?.bg} rounded-lg md:rounded-xl p-1.5 md:p-2.5 shadow-sm flex flex-col transition-transform hover:scale-[1.01] active:scale-100 cursor-pointer overflow-hidden`}>
+                        <div className={`text-[12px] md:text-[14px] font-black ${color?.text} leading-tight mb-auto break-all line-clamp-2 md:line-clamp-3 uppercase tracking-tighter`}>{res.reason || "예약 사유 없음"}</div>
+                        <div className={`text-[10px] md:text-[11px] ${color?.text} font-bold opacity-70 flex items-center gap-1 mt-0.5 md:mt-1 truncate`}><User size={10} strokeWidth={3} className="md:w-3 md:h-3" />{res.teacherName}</div>
                       </div>
                     </div>
                   );
@@ -779,7 +783,7 @@ export default function App() {
                     {dayRes.map((res, idx) => {
                       const color = getColorClass(res.teacherName);
                       return (
-                        <div key={idx} className={`text-[10px] font-black ${color.bg} ${color.text} px-1.5 py-0.5 rounded-lg truncate`}>
+                        <div key={idx} className={`text-[11px] md:text-[13px] font-black ${color.bg} ${color.text} px-2 py-1 rounded-lg truncate`}>
                           <span className="hidden md:inline mr-1 opacity-60">[{TIME_SLOTS[res.timeSlot]}]</span>
                           {res.reason}
                         </div>
@@ -845,9 +849,18 @@ export default function App() {
                       const facility = facilities.find(f => f.id === res.facilityId);
                       const color = getColorClass(res.facilityId);
                       return (
-                        <div key={idx} className={`border ${color.border} rounded-lg p-1 ${color.bg} shadow-sm flex flex-col overflow-hidden`}>
-                          <div className={`text-[8px] font-black ${color.text} truncate opacity-70 bg-white/50 px-1 rounded`}>{facility?.name || "???"}</div>
-                          <div className={`text-[9px] font-bold ${color.text} truncate px-0.5`}>{res.reason}</div>
+                        <div 
+                          key={idx} 
+                          className={`border ${color.border} rounded-lg p-1.5 ${color.bg} shadow-sm flex flex-col overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform active:scale-100`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFacility(facility || null);
+                            setCurrentDate(new Date(res.date));
+                            setCurrentView('timetable');
+                          }}
+                        >
+                          <div className={`text-[9px] font-black ${color.text} truncate opacity-70 bg-white/50 px-1 rounded mb-0.5`}>{facility?.name || "???"}</div>
+                          <div className={`text-[11px] font-bold ${color.text} truncate px-0.5 leading-tight`}>{res.reason}</div>
                         </div>
                       );
                     })}
@@ -864,7 +877,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20">
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-2 md:gap-3 cursor-pointer" onClick={() => setCurrentView('list')}>
+        <div className="flex items-center gap-2 md:gap-3 cursor-pointer" onClick={() => { setCurrentView('list'); setCurrentDate(new Date()); }}>
           <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg md:rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-100"><School size={18} className="md:w-5.5 md:h-5.5" /></div>
           <div className="flex flex-col">
             <h1 className="text-lg md:text-xl font-black tracking-tighter leading-none flex items-baseline">
@@ -880,7 +893,7 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-1.5 md:gap-4">
-          <button onClick={() => setCurrentView('global_calendar')} className="flex px-2 md:px-4 py-2 bg-slate-50 text-slate-600 rounded-lg md:rounded-xl text-[10px] md:text-sm font-bold items-center gap-1 md:gap-2 border border-slate-100 shadow-sm transition-all hover:bg-blue-50 hover:text-blue-600">
+          <button onClick={() => { setCurrentView('global_calendar'); setCurrentDate(new Date()); }} className="flex px-2 md:px-4 py-2 bg-slate-50 text-slate-600 rounded-lg md:rounded-xl text-[10px] md:text-sm font-bold items-center gap-1 md:gap-2 border border-slate-100 shadow-sm transition-all hover:bg-blue-50 hover:text-blue-600">
             <CalendarIcon size={14} className="md:w-4 md:h-4" /> 
             <span className="hidden md:inline">전체 예약 현황</span>
             <span className="md:hidden">현황</span>
