@@ -953,7 +953,7 @@ export default function App() {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">예약 유형</label>
                       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
-                        <button type="button" onClick={() => setRepeatInput('none')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${repeatInput === 'none' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>단일</button>
+                        <button type="button" onClick={() => setRepeatInput('none')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${repeatInput === 'none' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>한 번</button>
                         <button type="button" onClick={() => setRepeatInput('weekly')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-black transition-all ${repeatInput === 'weekly' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400'}`}>반복</button>
                       </div>
                     </div>
