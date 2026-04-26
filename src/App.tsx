@@ -29,7 +29,8 @@ import {
   User,
   School,
   X,
-  GripVertical
+  GripVertical,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -57,11 +58,11 @@ interface SortableFacilityProps {
   setPendingDeleteFacility: (data: {id: string, name: string} | null) => void;
   onSelect: (f: Facility, view: 'timetable' | 'calendar') => void;
   onEdit: (f: Facility) => void;
-  key?: React.Key;
+  onOpenGuide: (name: string, content: string) => void;
 }
 
 // --- Sortable Item Component ---
-function SortableFacility({ f, isAdmin, setPendingDeleteFacility, onSelect, onEdit }: SortableFacilityProps) {
+function SortableFacility({ f, isAdmin, setPendingDeleteFacility, onSelect, onEdit, onOpenGuide }: SortableFacilityProps) {
   const {
     attributes,
     listeners,
@@ -122,7 +123,18 @@ function SortableFacility({ f, isAdmin, setPendingDeleteFacility, onSelect, onEd
         </div>
         
         <h3 className="text-xl font-black text-slate-800 mb-1 leading-tight">{f.name}</h3>
-        <p className="text-slate-400 text-xs font-medium mb-6">학교 공용 시설 예약 시스템</p>
+        <div className="flex items-center gap-2 mb-6" onPointerDown={e => e.stopPropagation()}>
+          <p className="text-slate-400 text-xs font-medium">학교 공용 시설 예약 시스템</p>
+          {f.usageGuide && (
+            <button 
+              onClick={() => onOpenGuide(f.name, f.usageGuide || '')}
+              className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-lg transition-all hover:bg-purple-100 active:scale-95 shadow-sm cursor-pointer"
+            >
+              <Info size={12} strokeWidth={3} />
+              <span className="text-[10px] font-black whitespace-nowrap">이용 안내</span>
+            </button>
+          )}
+        </div>
         
         <div className="flex gap-1.5 md:gap-2 mt-auto" onPointerDown={e => e.stopPropagation()}>
           <button
@@ -164,6 +176,7 @@ interface Facility {
   id: string;
   name: string;
   order: number;
+  usageGuide?: string;
   createdAt: Timestamp;
 }
 
@@ -248,9 +261,12 @@ export default function App() {
   const [passwordInput, setPasswordInput] = useState('');
   
   const [isFacilityModalOpen, setIsFacilityModalOpen] = useState(false);
+  const [isUsageGuideModalOpen, setIsUsageGuideModalOpen] = useState(false);
+  const [activeGuideContent, setActiveGuideContent] = useState({ name: '', content: '' });
   const [isEditingFacility, setIsEditingFacility] = useState(false);
   const [editingFacilityId, setEditingFacilityId] = useState<string | null>(null);
   const [facilityNameInput, setFacilityNameInput] = useState('');
+  const [usageGuideInput, setUsageGuideInput] = useState('');
 
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
   const [teacherNameInput, setTeacherNameInput] = useState('');
@@ -337,11 +353,13 @@ export default function App() {
       try {
         if (isEditingFacility && editingFacilityId) {
           await updateDoc(doc(db, 'facilities', editingFacilityId), {
-            name: facilityNameInput
+            name: facilityNameInput,
+            usageGuide: usageGuideInput
           });
         } else {
           await addDoc(collection(db, 'facilities'), {
             name: facilityNameInput,
+            usageGuide: usageGuideInput,
             order: facilities.length,
             createdAt: serverTimestamp()
           });
@@ -350,6 +368,7 @@ export default function App() {
         setIsEditingFacility(false);
         setEditingFacilityId(null);
         setFacilityNameInput('');
+        setUsageGuideInput('');
       } catch (err) {
         handleFirestoreError(err, isEditingFacility ? OperationType.UPDATE : OperationType.CREATE, 'facilities');
       }
@@ -515,10 +534,15 @@ export default function App() {
                       setCurrentView(mode); 
                       setCurrentDate(new Date());
                     }}
+                    onOpenGuide={(name, content) => {
+                      setActiveGuideContent({ name, content });
+                      setIsUsageGuideModalOpen(true);
+                    }}
                     onEdit={(f) => {
                       setEditingFacilityId(f.id);
                       setIsEditingFacility(true);
                       setFacilityNameInput(f.name);
+                      setUsageGuideInput(f.usageGuide || '');
                       setIsFacilityModalOpen(true);
                     }}
                   />
@@ -928,12 +952,19 @@ export default function App() {
 
         {isFacilityModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setIsFacilityModalOpen(false); setIsEditingFacility(false); setEditingFacilityId(null); setFacilityNameInput(''); }} className="absolute inset-0 bg-slate-900/60" />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-white rounded-3xl p-8 w-full max-w-md" onClick={e => e.stopPropagation()}>
-              <h3 className="text-2xl font-bold mb-4">{isEditingFacility ? '시설 이름 수정' : '시설 추가'}</h3>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setIsFacilityModalOpen(false); setIsEditingFacility(false); setEditingFacilityId(null); setFacilityNameInput(''); setUsageGuideInput(''); }} className="absolute inset-0 bg-slate-900/60" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-white rounded-3xl p-8 w-full max-w-lg" onClick={e => e.stopPropagation()}>
+              <h3 className="text-2xl font-bold mb-4">{isEditingFacility ? '시설 정보 수정' : '시설 추가'}</h3>
               <form onSubmit={addFacility} className="space-y-4">
-                <input type="text" value={facilityNameInput} onChange={e => setFacilityNameInput(e.target.value)} placeholder="시설 이름" className="w-full px-5 py-4 bg-slate-50 border rounded-2xl" />
-                <button type="submit" className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl">{isEditingFacility ? '수정' : '등록'}</button>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">시설 이름</label>
+                  <input type="text" value={facilityNameInput} onChange={e => setFacilityNameInput(e.target.value)} placeholder="시설 이름 (예: 컴퓨터실, 강당)" className="w-full px-5 py-4 bg-slate-50 border rounded-2xl outline-none focus:border-blue-300 transition-all" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">이용 안내</label>
+                  <textarea value={usageGuideInput} onChange={e => setUsageGuideInput(e.target.value)} placeholder="이용 시 주의사항이나 안내사항을 입력하세요" className="w-full px-5 py-4 bg-slate-50 border rounded-2xl outline-none focus:border-blue-300 transition-all min-h-[150px] resize-none" />
+                </div>
+                <button type="submit" className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95">{isEditingFacility ? '수정' : '등록'}</button>
               </form>
             </motion.div>
           </div>
@@ -1075,6 +1106,38 @@ export default function App() {
                 <button onClick={() => setPendingDeleteFacility(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl">취소</button>
                 <button onClick={() => deleteFacility(pendingDeleteFacility.id)} className="flex-1 py-4 bg-rose-600 text-white font-bold rounded-2xl shadow-lg shadow-rose-100">삭제하기</button>
               </div>
+            </motion.div>
+          </div>
+        )}
+        {isUsageGuideModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsUsageGuideModalOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                    <Info size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-800 leading-none mb-1">이용 안내</h4>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{activeGuideContent.name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsUsageGuideModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-6 max-h-[60vh] overflow-y-auto">
+                <p className="text-slate-700 whitespace-pre-wrap leading-relaxed text-sm md:text-base font-medium">
+                  {activeGuideContent.content}
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsUsageGuideModalOpen(false)}
+                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all active:scale-95"
+              >
+                확인
+              </button>
             </motion.div>
           </div>
         )}
