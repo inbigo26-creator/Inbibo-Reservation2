@@ -10,6 +10,7 @@ import {
   addDoc, 
   deleteDoc, 
   updateDoc,
+  getDoc,
   doc, 
   serverTimestamp, 
   Timestamp,
@@ -190,6 +191,7 @@ interface Reservation {
   reason: string;
   repeat?: 'none' | 'weekly';
   repeatUntil?: string; // YYYY-MM-DD
+  excludedDates?: string[]; // Array of YYYY-MM-DD strings to exclude
   createdAt: Timestamp;
 }
 
@@ -284,6 +286,8 @@ export default function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
   const [pendingRes, setPendingRes] = useState<{fId: string, date: string, slot: number} | null>(null);
+  const [isDeleteOptionsOpen, setIsDeleteOptionsOpen] = useState(false);
+  const [resToDelete, setResToDelete] = useState<{ id: string, date: string, isRecurring: boolean } | null>(null);
   const [isResSuccess, setIsResSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -428,6 +432,7 @@ export default function App() {
           
           // Current is weekly, R is single
           if (repeatInput === 'weekly') {
+            if (r.excludedDates?.includes(r.date)) return false; // Should not really happen but for safety
             if (currentSelectedDate.getDay() !== rDate.getDay()) return false;
             if (rDate < currentSelectedDate) return false;
             if (repeatUntilInput && rDate > new Date(repeatUntilInput)) return false;
@@ -436,6 +441,7 @@ export default function App() {
 
           // Current is single, R is weekly
           if (r.repeat === 'weekly') {
+            if (r.excludedDates?.includes(pendingRes.date)) return false;
             if (currentSelectedDate.getDay() !== rDate.getDay()) return false;
             if (currentSelectedDate < rDate) return false;
             if (r.repeatUntil && currentSelectedDate > new Date(r.repeatUntil)) return false;
@@ -498,11 +504,48 @@ export default function App() {
     }
   };
 
-  const deleteReservation = async (resId: string) => {
+  const deleteReservation = async (resId: string, mode: 'single' | 'future' | 'all' = 'all', targetDate?: string) => {
     try {
-      await deleteDoc(doc(db, 'reservations', resId));
+      const resRef = doc(db, 'reservations', resId);
+      
+      if (mode === 'all') {
+        await deleteDoc(resRef);
+      } else if (mode === 'single' && targetDate) {
+        const resSnap = await getDoc(resRef);
+        if (resSnap.exists()) {
+          const data = resSnap.data() as Reservation;
+          const excludedDates = data.excludedDates || [];
+          if (!excludedDates.includes(targetDate)) {
+            await updateDoc(resRef, {
+              excludedDates: [...excludedDates, targetDate]
+            });
+          }
+        }
+      } else if (mode === 'future' && targetDate) {
+        const prevDate = new Date(targetDate);
+        prevDate.setDate(prevDate.getDate() - 1);
+        const prevDateStr = formatDate(prevDate);
+        
+        const resSnap = await getDoc(resRef);
+        if (resSnap.exists()) {
+          const data = resSnap.data() as Reservation;
+          // If the original date is the same as targetDate, then "all" is more appropriate, 
+          // but "future" essentially becomes "none" if we set repeatUntil to yesterday.
+          // However, we must ensure we don't end up with an invalid repeatUntil.
+          if (data.date >= targetDate) {
+            await deleteDoc(resRef);
+          } else {
+            await updateDoc(resRef, {
+              repeatUntil: prevDateStr
+            });
+          }
+        }
+      }
+
       setIsReservationModalOpen(false);
+      setIsDeleteOptionsOpen(false);
       setPendingDeleteRes(null);
+      setResToDelete(null);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `reservations/${resId}`);
     }
@@ -596,6 +639,7 @@ export default function App() {
       if (r.facilityId !== selectedFacility.id) return;
       weekDates.forEach(d => {
         const dStr = formatDate(d);
+        if (r.excludedDates?.includes(dStr)) return;
         let match = (r.date === dStr);
         if (!match && r.repeat === 'weekly') {
           const rDate = new Date(r.date);
@@ -682,6 +726,7 @@ export default function App() {
                 // Find reservation starting at this slot
                 const res = reservations.find(r => {
                   if (r.facilityId !== selectedFacility.id || Number(r.timeSlot) !== slotIdx) return false;
+                  if (r.excludedDates?.includes(dateStr)) return false;
                   if (r.date === dateStr) return true;
                   if (r.repeat === 'weekly') {
                     const rDate = new Date(r.date);
@@ -795,6 +840,7 @@ export default function App() {
               const day = date.getDay();
               const dayRes = reservations.filter(r => {
                 if (r.facilityId !== selectedFacility.id) return false;
+                if (r.excludedDates?.includes(dStr)) return false;
                 if (r.date === dStr) return true;
                 if (r.repeat === 'weekly') {
                   const rDate = new Date(r.date);
@@ -872,6 +918,7 @@ export default function App() {
               const dStr = formatDate(date);
               const day = date.getDay();
               const dayRes = reservations.filter(r => {
+                if (r.excludedDates?.includes(dStr)) return false;
                 if (r.date === dStr) return true;
                 if (r.repeat === 'weekly') {
                   const rDate = new Date(r.date);
@@ -1092,10 +1139,24 @@ export default function App() {
                   )}
                   
                   <div className="flex gap-2 mt-4">
-                    {isEditingRes && (
+                     {isEditingRes && (
                       pendingDeleteRes === editingResId ? (
                         <div className="flex-1 flex gap-2">
-                          <button type="button" onClick={() => deleteReservation(editingResId)} className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl text-xs">삭제 확인</button>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              const res = reservations.find(r => r.id === editingResId);
+                              if (res && res.repeat === 'weekly') {
+                                setResToDelete({ id: res.id, date: pendingRes?.date || '', isRecurring: true });
+                                setIsDeleteOptionsOpen(true);
+                              } else {
+                                deleteReservation(editingResId || '');
+                              }
+                            }} 
+                            className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl text-xs"
+                          >
+                            삭제 확인
+                          </button>
                           <button type="button" onClick={() => setPendingDeleteRes(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs">취소</button>
                         </div>
                       ) : (
@@ -1160,6 +1221,54 @@ export default function App() {
                 className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all active:scale-95"
               >
                 확인
+              </button>
+            </motion.div>
+          </div>
+        )}
+
+        {isDeleteOptionsOpen && resToDelete && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsDeleteOptionsOpen(false)} className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-white rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="text-center mb-8">
+                <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-rose-100">
+                  <Trash2 size={40} strokeWidth={2} />
+                </div>
+                <h3 className="text-2xl font-black text-slate-800 mb-2">반복 예약 삭제</h3>
+                <p className="text-slate-400 text-sm font-bold">삭제 범위를 선택해주세요.</p>
+              </div>
+              
+              <div className="space-y-3 mb-8">
+                <button 
+                  onClick={() => deleteReservation(resToDelete.id, 'single', resToDelete.date)}
+                  className="w-full p-5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-100 hover:border-rose-200 rounded-2xl text-left transition-all group"
+                >
+                  <p className="text-sm font-black mb-1 group-hover:text-rose-700">이 일정만 삭제</p>
+                  <p className="text-[11px] text-slate-400 font-bold leading-tight">{resToDelete.date}의 예약만 삭제합니다.</p>
+                </button>
+                
+                <button 
+                  onClick={() => deleteReservation(resToDelete.id, 'future', resToDelete.date)}
+                  className="w-full p-5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-100 hover:border-rose-200 rounded-2xl text-left transition-all group"
+                >
+                  <p className="text-sm font-black mb-1 group-hover:text-rose-700">이 일정부터 향후 모든 일정 삭제</p>
+                  <p className="text-[11px] text-slate-400 font-bold leading-tight">{resToDelete.date} 이후의 모든 반복 예약을 삭제합니다.</p>
+                </button>
+                
+                <button 
+                  onClick={() => deleteReservation(resToDelete.id, 'all')}
+                  className="w-full p-5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-100 hover:border-rose-200 rounded-2xl text-left transition-all group"
+                >
+                  <p className="text-sm font-black mb-1 group-hover:text-rose-700">전체 일정 삭제</p>
+                  <p className="text-[11px] text-slate-400 font-bold leading-tight">해당 예약 데이터 전체를 삭제합니다.</p>
+                </button>
+              </div>
+              
+              <button 
+                onClick={() => setIsDeleteOptionsOpen(false)}
+                className="w-full py-4 text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors"
+              >
+                취소
               </button>
             </motion.div>
           </div>
