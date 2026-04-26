@@ -756,7 +756,7 @@ export default function App() {
     const firstDay = new Date(year, month, 1).getDay(); 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const days = [];
-    const padding = firstDay === 0 ? 6 : firstDay - 1;
+    const padding = firstDay;
     for (let i = 0; i < padding; i++) days.push(null);
     for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
 
@@ -784,12 +784,15 @@ export default function App() {
         </div>
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
           <div className="grid grid-cols-7 bg-slate-50/50 border-b border-slate-100 text-center font-black text-xs text-slate-500 py-4">
-            {["월", "화", "수", "목", "금", "토", "일"].map(d => <div key={d}>{d}</div>)}
+            {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+              <div key={d} className={i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : ""}>{d}</div>
+            ))}
           </div>
           <div className="grid grid-cols-7 grid-rows-[repeat(6,1fr)] min-h-[600px]">
             {days.map((date, i) => {
               if (!date) return <div key={i} className="border-r border-b border-slate-50" />;
               const dStr = formatDate(date);
+              const day = date.getDay();
               const dayRes = reservations.filter(r => {
                 if (r.facilityId !== selectedFacility.id) return false;
                 if (r.date === dStr) return true;
@@ -800,9 +803,17 @@ export default function App() {
                 return false;
               });
               const isToday = formatDate(new Date()) === dStr;
+              const dateColorClass = isToday 
+                ? "bg-blue-600 text-white" 
+                : day === 0 
+                  ? "text-red-500" 
+                  : day === 6 
+                    ? "text-blue-500" 
+                    : "text-slate-400";
+
               return (
                 <div key={i} className="border-r border-b border-slate-50 p-2 hover:bg-slate-50 transition-all cursor-pointer" onClick={() => { setCurrentDate(date); setCurrentView('timetable'); }}>
-                  <div className="mb-1"><span className={`text-sm font-black w-7 h-7 flex items-center justify-center rounded-lg ${isToday ? "bg-blue-600 text-white" : "text-slate-400"}`}>{date.getDate()}</span></div>
+                  <div className="mb-1"><span className={`text-sm font-black w-7 h-7 flex items-center justify-center rounded-lg ${dateColorClass}`}>{date.getDate()}</span></div>
                   <div className="space-y-1">
                     {dayRes.map((res, idx) => {
                       const color = getColorClass(res.teacherName);
@@ -829,7 +840,7 @@ export default function App() {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const days = [];
-    const padding = firstDay === 0 ? 6 : firstDay - 1;
+    const padding = firstDay;
     for (let i = 0; i < padding; i++) days.push(null);
     for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
 
@@ -851,12 +862,15 @@ export default function App() {
         </div>
         <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-200 overflow-hidden">
           <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100 text-center py-4 text-xs font-black text-slate-500">
-            {["월", "화", "수", "목", "금", "토", "일"].map(d => <div key={d}>{d}</div>)}
+            {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+              <div key={d} className={i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : ""}>{d}</div>
+            ))}
           </div>
           <div className="grid grid-cols-7 grid-rows-[repeat(6,1fr)] min-h-[700px]">
             {days.map((date, i) => {
               if (!date) return <div key={i} className="border-r border-b border-slate-50 bg-slate-50/20" />;
               const dStr = formatDate(date);
+              const day = date.getDay();
               const dayRes = reservations.filter(r => {
                 if (r.date === dStr) return true;
                 if (r.repeat === 'weekly') {
@@ -865,9 +879,18 @@ export default function App() {
                 }
                 return false;
               });
+              const isToday = formatDate(new Date()) === dStr;
+              const dateColorClass = isToday 
+                ? "bg-blue-600 text-white" 
+                : day === 0 
+                  ? "text-red-500" 
+                  : day === 6 
+                    ? "text-blue-500" 
+                    : "text-slate-400";
+
               return (
                 <div key={i} className="border-r border-b border-slate-50 p-2 hover:bg-slate-50 flex flex-col overflow-hidden">
-                  <div className="mb-2"><span className={`text-xs font-black w-6 h-6 flex items-center justify-center rounded-lg ${formatDate(new Date()) === dStr ? "bg-blue-600 text-white" : "text-slate-400"}`}>{date.getDate()}</span></div>
+                  <div className="mb-2"><span className={`text-xs font-black w-6 h-6 flex items-center justify-center rounded-lg ${dateColorClass}`}>{date.getDate()}</span></div>
                   <div className="space-y-1.5 overflow-hidden">
                     {dayRes.map((res, idx) => {
                       const facility = facilities.find(f => f.id === res.facilityId);
