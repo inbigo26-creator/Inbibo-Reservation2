@@ -171,7 +171,7 @@ const TIME_SLOTS = [
   "방과후"
 ];
 
-const DAYS = ["월", "화", "수", "목", "금"];
+const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 interface Facility {
   id: string;
@@ -202,6 +202,12 @@ const formatDate = (date: Date) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const getDayFromStr = (dateStr: string) => {
+  if (!dateStr) return 0;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getDay();
 };
 
 const getWeekDates = (baseDate: Date) => {
@@ -394,6 +400,7 @@ export default function App() {
     setErrorMessage(null);
 
     try {
+      const originalRes = isEditingRes ? reservations.find(r => r.id === editingResId) : null;
       const duration = endSlotInput - startSlotInput + 1;
       
       // Conflict Check
@@ -411,41 +418,43 @@ export default function App() {
         if (!slotsOverlap) return false;
 
         // Check date overlap
-        const currentSelectedDate = new Date(pendingRes.date);
-        const rDate = new Date(r.date);
+        const currentStartDay = getDayFromStr(pendingRes.date);
         
-        // Both are single date
-        if (repeatInput === 'none' && (!r.repeat || r.repeat === 'none')) {
-          return r.date === pendingRes.date;
-        }
-
         // Check repeat overlap logic
         const getDatesOverlap = () => {
+          const start1 = isEditingRes && originalRes ? originalRes.date : pendingRes.date;
+          const end1 = repeatUntilInput || '9999-12-31';
+          const start2 = r.date;
+          const end2 = r.repeatUntil || '9999-12-31';
+
           // If both are weekly on same day
           if (repeatInput === 'weekly' && r.repeat === 'weekly') {
-            if (currentSelectedDate.getDay() !== rDate.getDay()) return false;
-            // Check if periods overlap
-            const currentUntil = repeatUntilInput ? new Date(repeatUntilInput) : new Date(8640000000000000); 
-            const rUntil = r.repeatUntil ? new Date(r.repeatUntil) : new Date(8640000000000000);
-            return currentSelectedDate <= rUntil && rDate <= currentUntil;
+            if (getDayFromStr(start1) !== getDayFromStr(start2)) return false;
+            // Check if date ranges overlap
+            return start1 <= end2 && start2 <= end1;
           }
           
           // Current is weekly, R is single
           if (repeatInput === 'weekly') {
-            if (r.excludedDates?.includes(r.date)) return false; // Should not really happen but for safety
-            if (currentSelectedDate.getDay() !== rDate.getDay()) return false;
-            if (rDate < currentSelectedDate) return false;
-            if (repeatUntilInput && rDate > new Date(repeatUntilInput)) return false;
+            if (r.excludedDates?.includes(r.date)) return false;
+            if (getDayFromStr(start1) !== getDayFromStr(r.date)) return false;
+            if (r.date < start1) return false;
+            if (repeatUntilInput && r.date > repeatUntilInput) return false;
             return true;
           }
 
           // Current is single, R is weekly
           if (r.repeat === 'weekly') {
             if (r.excludedDates?.includes(pendingRes.date)) return false;
-            if (currentSelectedDate.getDay() !== rDate.getDay()) return false;
-            if (currentSelectedDate < rDate) return false;
-            if (r.repeatUntil && currentSelectedDate > new Date(r.repeatUntil)) return false;
+            if (getDayFromStr(r.date) !== getDayFromStr(pendingRes.date)) return false;
+            if (pendingRes.date < r.date) return false;
+            if (r.repeatUntil && pendingRes.date > r.repeatUntil) return false;
             return true;
+          }
+
+          // Both are single
+          if (repeatInput === 'none' && (!r.repeat || r.repeat === 'none')) {
+             return r.date === pendingRes.date;
           }
 
           return false;
@@ -455,7 +464,7 @@ export default function App() {
       });
 
       if (conflict) {
-        const conflictDate = conflict.repeat === 'weekly' ? `${DAYS[new Date(conflict.date).getDay()]}요일 반복` : conflict.date;
+        const conflictDate = conflict.repeat === 'weekly' ? `${DAYS[getDayFromStr(conflict.date)]}요일 반복` : conflict.date;
         const conflictTime = conflict.duration > 1 
           ? `${TIME_SLOTS[conflict.timeSlot]} ~ ${TIME_SLOTS[conflict.timeSlot + conflict.duration - 1]}`
           : TIME_SLOTS[conflict.timeSlot];
@@ -466,12 +475,12 @@ export default function App() {
 
       const data: any = {
         facilityId: pendingRes.fId,
-        date: pendingRes.date,
+        date: isEditingRes && originalRes ? originalRes.date : pendingRes.date,
         timeSlot: startSlotInput,
         duration: duration,
         teacherName: teacherNameInput,
         reason: reasonInput,
-        createdAt: serverTimestamp()
+        createdAt: isEditingRes && originalRes ? originalRes.createdAt : serverTimestamp()
       };
 
       if (repeatInput !== 'none') {
@@ -522,16 +531,14 @@ export default function App() {
           }
         }
       } else if (mode === 'future' && targetDate) {
-        const prevDate = new Date(targetDate);
-        prevDate.setDate(prevDate.getDate() - 1);
-        const prevDateStr = formatDate(prevDate);
+        const [y, m, d] = targetDate.split('-').map(Number);
+        const targetDateObj = new Date(y, m - 1, d);
+        targetDateObj.setDate(targetDateObj.getDate() - 1);
+        const prevDateStr = formatDate(targetDateObj);
         
         const resSnap = await getDoc(resRef);
         if (resSnap.exists()) {
           const data = resSnap.data() as Reservation;
-          // If the original date is the same as targetDate, then "all" is more appropriate, 
-          // but "future" essentially becomes "none" if we set repeatUntil to yesterday.
-          // However, we must ensure we don't end up with an invalid repeatUntil.
           if (data.date >= targetDate) {
             await deleteDoc(resRef);
           } else {
@@ -642,9 +649,8 @@ export default function App() {
         if (r.excludedDates?.includes(dStr)) return;
         let match = (r.date === dStr);
         if (!match && r.repeat === 'weekly') {
-          const rDate = new Date(r.date);
-          const untilDate = r.repeatUntil ? new Date(r.repeatUntil) : null;
-          match = rDate.getDay() === d.getDay() && d >= rDate && (!untilDate || d <= untilDate);
+          const rStartDay = getDayFromStr(r.date);
+          match = rStartDay === d.getDay() && dStr >= r.date && (!r.repeatUntil || dStr <= r.repeatUntil);
         }
         if (match && r.duration > 1) {
           for (let i = 1; i < r.duration; i++) coveredMap[`${dStr}-${r.timeSlot + i}`] = true;
@@ -701,7 +707,7 @@ export default function App() {
             <div className="p-2 md:p-3 border-r border-b border-slate-200 bg-slate-50 font-bold text-slate-400 text-center text-[9px] md:text-[10px] uppercase tracking-wider sticky top-0 left-0 z-50">Time</div>
             {weekDates.map((date, i) => (
               <div key={i} className="p-2 md:p-3 border-r border-b border-slate-200 bg-slate-50 text-center sticky top-0 z-40">
-                <div className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">{DAYS[i]}</div>
+                <div className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">{DAYS[date.getDay()]}</div>
                 <div className={`text-xs md:text-sm font-black ${formatDate(date) === formatDate(new Date()) ? "text-blue-600" : "text-slate-800"}`}>{date.getMonth() + 1}/{date.getDate()}</div>
               </div>
             ))}
@@ -729,9 +735,8 @@ export default function App() {
                   if (r.excludedDates?.includes(dateStr)) return false;
                   if (r.date === dateStr) return true;
                   if (r.repeat === 'weekly') {
-                    const rDate = new Date(r.date);
-                    const untilDate = r.repeatUntil ? new Date(r.repeatUntil) : null;
-                    return rDate.getDay() === date.getDay() && date >= rDate && (!untilDate || date <= untilDate);
+                    const rStartDay = getDayFromStr(r.date);
+                    return rStartDay === date.getDay() && dateStr >= r.date && (!r.repeatUntil || dateStr <= r.repeatUntil);
                   }
                   return false;
                 });
@@ -752,7 +757,7 @@ export default function App() {
                         setTeacherNameInput(res.teacherName); setReasonInput(res.reason);
                         setStartSlotInput(res.timeSlot); setEndSlotInput(res.timeSlot + res.duration - 1);
                         setRepeatInput(res.repeat || 'none'); setRepeatUntilInput(res.repeatUntil || '');
-                        setPendingRes({ fId: res.facilityId, date: res.date, slot: res.timeSlot });
+                        setPendingRes({ fId: res.facilityId, date: dateStr, slot: res.timeSlot });
                         setIsReservationModalOpen(true);
                       }}
                     >
@@ -829,7 +834,7 @@ export default function App() {
         </div>
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
           <div className="grid grid-cols-7 bg-slate-50/50 border-b border-slate-100 text-center font-black text-xs text-slate-500 py-4">
-            {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+            {DAYS.map((d, i) => (
               <div key={d} className={i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : ""}>{d}</div>
             ))}
           </div>
@@ -843,8 +848,8 @@ export default function App() {
                 if (r.excludedDates?.includes(dStr)) return false;
                 if (r.date === dStr) return true;
                 if (r.repeat === 'weekly') {
-                  const rDate = new Date(r.date);
-                  return rDate.getDay() === date.getDay() && date >= rDate && (!r.repeatUntil || date <= new Date(r.repeatUntil));
+                  const rStartDay = getDayFromStr(r.date);
+                  return rStartDay === date.getDay() && dStr >= r.date && (!r.repeatUntil || dStr <= r.repeatUntil);
                 }
                 return false;
               });
@@ -908,7 +913,7 @@ export default function App() {
         </div>
         <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-200 overflow-hidden">
           <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100 text-center py-4 text-xs font-black text-slate-500">
-            {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+            {DAYS.map((d, i) => (
               <div key={d} className={i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : ""}>{d}</div>
             ))}
           </div>
@@ -921,8 +926,9 @@ export default function App() {
                 if (r.excludedDates?.includes(dStr)) return false;
                 if (r.date === dStr) return true;
                 if (r.repeat === 'weekly') {
-                  const rDate = new Date(r.date);
-                  return rDate.getDay() === date.getDay() && date >= rDate && (!r.repeatUntil || date <= new Date(r.repeatUntil));
+                  const rStartDate = r.date;
+                  const rStartDay = getDayFromStr(rStartDate);
+                  return rStartDay === date.getDay() && dStr >= rStartDate && (!r.repeatUntil || dStr <= r.repeatUntil);
                 }
                 return false;
               });
@@ -1116,7 +1122,7 @@ export default function App() {
                     <div className="p-3 bg-blue-50/30 rounded-2xl border border-blue-100 space-y-2">
                       <div className="flex items-center justify-between text-[10px] font-black text-blue-700 px-1">
                         <span>종료일</span>
-                        <span className="text-blue-400 font-bold">매주 {DAYS[new Date(pendingRes?.date || '').getDay() === 0 ? 0 : new Date(pendingRes?.date || '').getDay() - 1]}요일 반복</span>
+                        <span className="text-blue-400 font-bold">매주 {DAYS[getDayFromStr(pendingRes?.date || '')]}요일 반복</span>
                       </div>
                       <input 
                         type="date" 
