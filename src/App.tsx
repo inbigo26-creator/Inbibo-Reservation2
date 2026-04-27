@@ -617,25 +617,27 @@ export default function App() {
 
   // Simple hash function for consistent colors
   const getColorClass = (text: string) => {
-    // 10 distinct variations of pastel blue-purples and periwinkles
-    const purpleBlueGradient = [
-      { bg: 'bg-[#EEF2FF]', text: 'text-[#3730A3]', border: 'border-[#C7D2FE]' }, // Indigo 50
-      { bg: 'bg-[#F5F3FF]', text: 'text-[#5B21B6]', border: 'border-[#DDD6FE]' }, // Violet 50
-      { bg: 'bg-[#FDF2F8]', text: 'text-[#9D174D]', border: 'border-[#FBCFE8]' }, // Pink (Soft)
-      { bg: 'bg-[#F8F9FF]', text: 'text-[#312E81]', border: 'border-[#E0E7FF]' }, // Periwinkle 1
-      { bg: 'bg-[#F0F4FF]', text: 'text-[#1E3A8A]', border: 'border-[#DBEAFE]' }, // Periwinkle 2
-      { bg: 'bg-[#FAF5FF]', text: 'text-[#6B21A8]', border: 'border-[#F3E8FF]' }, // Purple 50
-      { bg: 'bg-[#F1F5F9]', text: 'text-[#334155]', border: 'border-[#E2E8F0]' }, // Slate (Cool)
-      { bg: 'bg-[#E0E7FF]', text: 'text-[#312E81]', border: 'border-[#C7D2FE]' }, // Indigo 100
-      { bg: 'bg-[#EDE9FE]', text: 'text-[#4C1D95]', border: 'border-[#DDD6FE]' }, // Violet 100
-      { bg: 'bg-[#F3E8FF]', text: 'text-[#6B21A8]', border: 'border-[#E9D5FF]' }, // Purple 100
+    // 12 distinct variations of diverse pastel colors for better room distinction
+    const diversePastelPalette = [
+      { bg: 'bg-[#EEF2FF]', text: 'text-[#3730A3]', border: 'border-[#C7D2FE]' }, // Indigo
+      { bg: 'bg-[#F5F3FF]', text: 'text-[#5B21B6]', border: 'border-[#DDD6FE]' }, // Violet
+      { bg: 'bg-[#ECFDF5]', text: 'text-[#065F46]', border: 'border-[#A7F3D0]' }, // Emerald/Mint
+      { bg: 'bg-[#FFF7ED]', text: 'text-[#9A3412]', border: 'border-[#FFEDD5]' }, // Orange/Peach
+      { bg: 'bg-[#F0F9FF]', text: 'text-[#075985]', border: 'border-[#BAE6FD]' }, // Sky Blue
+      { bg: 'bg-[#FFFBEB]', text: 'text-[#92400E]', border: 'border-[#FEF3C7]' }, // Amber
+      { bg: 'bg-[#FFF1F2]', text: 'text-[#9F1239]', border: 'border-[#FECDD3]' }, // Rose
+      { bg: 'bg-[#F0FDFA]', text: 'text-[#134E4A]', border: 'border-[#CCFBF1]' }, // Teal
+      { bg: 'bg-[#F7FEE7]', text: 'text-[#3F6212]', border: 'border-[#ECFCCB]' }, // Lime
+      { bg: 'bg-[#FAFAF9]', text: 'text-[#44403C]', border: 'border-[#E7E5E4]' }, // Stone
+      { bg: 'bg-[#FDF2F8]', text: 'text-[#9D174D]', border: 'border-[#FBCFE8]' }, // Pink
+      { bg: 'bg-[#EFF6FF]', text: 'text-[#1E40AF]', border: 'border-[#DBEAFE]' }, // Blue
     ];
     
     let hash = 0;
     for (let i = 0; i < text.length; i++) {
       hash = text.charCodeAt(i) + ((hash << 5) - hash);
     }
-    return purpleBlueGradient[Math.abs(hash) % purpleBlueGradient.length];
+    return diversePastelPalette[Math.abs(hash) % diversePastelPalette.length];
   };
 
   const renderTimetable = () => {
