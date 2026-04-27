@@ -616,10 +616,13 @@ export default function App() {
   );
 
   // Simple hash function for consistent colors
-  const getColorClass = (text: string) => {
+  const getColorClass = (id: string) => {
+    const facility = facilities.find(f => f.id === id);
+    const name = facility ? facility.name : id;
+
     // Specific color for '대회의실' as requested: Light pastel lavender
-    if (text === '대회의실') {
-      return { bg: 'bg-[#F5F3FF]', text: 'text-[#6D28D9]', border: 'border-[#DDD6FE]' };
+    if (name.includes('대회의실')) {
+      return { bg: 'bg-[#EDE9FE]', text: 'text-[#5B21B6]', border: 'border-[#C4B5FD]' };
     }
 
     // 12 distinct variations of diverse pastel colors for better room distinction
