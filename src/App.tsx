@@ -642,8 +642,9 @@ export default function App() {
     ];
     
     let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-      hash = text.charCodeAt(i) + ((hash << 5) - hash);
+    const hashTarget = name || id;
+    for (let i = 0; i < hashTarget.length; i++) {
+      hash = hashTarget.charCodeAt(i) + ((hash << 5) - hash);
     }
     return diversePastelPalette[Math.abs(hash) % diversePastelPalette.length];
   };
