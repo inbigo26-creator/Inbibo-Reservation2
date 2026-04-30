@@ -423,7 +423,7 @@ export default function App() {
         
         // Check repeat overlap logic
         const getDatesOverlap = () => {
-          const start1 = isEditingRes && originalRes ? originalRes.date : pendingRes.date;
+          const start1 = pendingRes.date;
           const end1 = repeatUntilInput || '9999-12-31';
           const start2 = r.date;
           const end2 = r.repeatUntil || '9999-12-31';
@@ -476,7 +476,7 @@ export default function App() {
 
       const data: any = {
         facilityId: pendingRes.fId,
-        date: isEditingRes && originalRes ? originalRes.date : pendingRes.date,
+        date: pendingRes.date,
         timeSlot: startSlotInput,
         duration: duration,
         teacherName: teacherNameInput,
@@ -1067,9 +1067,29 @@ export default function App() {
               ) : (
                 <form onSubmit={addReservation} className="space-y-4">
                   <h3 className="text-lg md:text-xl font-bold mb-4">{isEditingRes ? '예약 상세 및 수정' : '예약 신청'}</h3>
-                  <div className="grid grid-cols-2 gap-2 md:gap-3">
-                    <div className="p-2 md:p-3 bg-blue-50/50 rounded-xl font-bold text-[9px] md:text-xs text-blue-700 border border-blue-100 truncate">날짜: {pendingRes?.date}</div>
-                    <div className="p-2 md:p-3 bg-amber-50/50 rounded-xl font-bold text-[9px] md:text-xs text-amber-700 truncate border border-amber-100">시설: {facilities.find(f => f.id === pendingRes?.fId)?.name}</div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">예약 날짜</label>
+                      <input 
+                        type="date" 
+                        value={pendingRes?.date || ''} 
+                        onChange={e => setPendingRes(prev => prev ? { ...prev, date: e.target.value } : null)}
+                        className="w-full px-4 py-2 bg-blue-50/50 border border-blue-100 rounded-xl font-bold text-xs md:text-sm text-blue-700 outline-none focus:border-blue-300 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">시설물 선택</label>
+                      <select 
+                        value={pendingRes?.fId || ''} 
+                        onChange={e => setPendingRes(prev => prev ? { ...prev, fId: e.target.value } : null)}
+                        className="w-full px-4 py-2 bg-amber-50/50 border border-amber-100 rounded-xl font-bold text-xs md:text-sm text-amber-700 outline-none focus:border-amber-300 transition-all"
+                      >
+                        {facilities.map(f => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   
                   <div className="space-y-1">
