@@ -126,7 +126,13 @@ function SortableFacility({ f, isAdmin, setPendingDeleteFacility, onSelect, onEd
         
         <h3 className="text-xl font-black text-slate-800 mb-1 leading-tight">{f.name}</h3>
         <div className="flex items-center gap-2 mb-6" onPointerDown={e => e.stopPropagation()}>
-          <p className="text-slate-400 text-xs font-medium">학교 공용 시설 예약 시스템</p>
+          <p className="text-slate-400 text-xs font-medium leading-tight">
+            {f.usageGuide ? (
+              <>학교 공용시설<br />예약 시스템</>
+            ) : (
+              "학교 공용 시설 예약 시스템"
+            )}
+          </p>
           {f.usageGuide && (
             <button 
               onClick={() => onOpenGuide(f.name, f.usageGuide || '')}
