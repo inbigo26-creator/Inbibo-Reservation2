@@ -124,7 +124,23 @@ function SortableFacility({ f, isAdmin, setPendingDeleteFacility, onSelect, onEd
           )}
         </div>
         
-        <h3 className="text-xl font-black text-slate-800 mb-1 leading-tight">{f.name}</h3>
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="text-xl font-black text-slate-800 leading-tight">{f.name}</h3>
+          {f.name.includes('대회의실') && (
+            <div className="flex items-center gap-1.5 px-1 py-0.5 transition-all">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              <span 
+                className="text-[11px] font-black text-red-600 tracking-tighter"
+                style={{ textShadow: '0 0 10px rgba(239, 68, 68, 0.4), 0 0 20px rgba(239, 68, 68, 0.2)' }}
+              >
+                방송 별도 신청
+              </span>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2 mb-6" onPointerDown={e => e.stopPropagation()}>
           <p className="text-slate-400 text-xs font-medium leading-tight">학교 공용시설 예약 시스템</p>
           {f.usageGuide && (
